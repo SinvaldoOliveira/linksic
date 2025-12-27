@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, AuthContextType, UserPage } from '@/types/auth';
+import { User, AuthContextType, UserPage, PageConfig, DEFAULT_PAGE_CONFIG } from '@/types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -111,12 +111,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     users[userId] = { user: newUser, password };
     saveUsers(users);
 
-    // Create user page
+    // Create user page with default config
     const pages = getPages();
     pages[userId] = {
       userId,
       userName: name,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      config: DEFAULT_PAGE_CONFIG
     };
     savePages(pages);
 
