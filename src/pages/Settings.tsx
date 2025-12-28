@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DashboardLayout } from '@/components/DashboardLayout';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -9,9 +8,12 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { User, Image, Link, Palette, Plus, Trash2, ExternalLink, Copy } from 'lucide-react';
+import { User, Image, Link, Palette, Plus, Trash2, ExternalLink, Copy, Menu, ChevronLeft, LayoutDashboard, FileText, Settings as SettingsIcon, LogOut } from 'lucide-react';
 import { PageConfig, PageLink, DEFAULT_PAGE_CONFIG } from '@/types/auth';
 import { PhonePreview } from '@/components/PhonePreview';
+import { useNavigate } from 'react-router-dom';
+import { NavLink } from '@/components/NavLink';
+import { cn } from '@/lib/utils';
 
 const COLOR_PALETTES = [
   { name: 'Roxo', primary: '#8B5CF6', secondary: '#A78BFA', background: '#1A1A2E', text: '#FFFFFF' },
@@ -22,12 +24,29 @@ const COLOR_PALETTES = [
   { name: 'Claro', primary: '#6366F1', secondary: '#818CF8', background: '#F8FAFC', text: '#1E293B' },
 ];
 
+const userMenuItems = [
+  { title: 'Visão Geral', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Minha Página', url: '/dashboard/my-page', icon: FileText },
+  { title: 'Configurações', url: '/dashboard/settings', icon: SettingsIcon },
+];
+
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [pageConfig, setPageConfig] = useState<PageConfig>(DEFAULT_PAGE_CONFIG);
   const [newLinkLabel, setNewLinkLabel] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [menuOpen, setMenuOpen] = useState(true);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate('/auth');
+    }
+    if (!isLoading && user && user.role === 'admin') {
+      navigate('/admin');
+    }
+  }, [user, isLoading, navigate]);
 
   useEffect(() => {
     if (user) {
@@ -40,6 +59,14 @@ export default function Settings() {
       }
     }
   }, [user]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground">Carregando...</div>
+      </div>
+    );
+  }
 
   if (!user) return null;
 
@@ -127,17 +154,85 @@ export default function Settings() {
     toast({ title: 'Copiado!', description: 'URL copiada para a área de transferência' });
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/auth');
+  };
+
   return (
-    <DashboardLayout type="user">
-      <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-120px)]">
-        {/* Left Panel - Configuration */}
-        <div className="flex-1 overflow-y-auto pr-2">
-          {/* Header with URL */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Editor de Página</h2>
-              <p className="text-muted-foreground text-sm">Personalize sua página pública</p>
+    <div className="min-h-screen flex w-full bg-muted/30">
+      {/* Column 1 - Collapsible Menu */}
+      <aside 
+        className={cn(
+          "bg-background border-r border-border/50 flex flex-col transition-all duration-300 shrink-0",
+          menuOpen ? "w-60" : "w-16"
+        )}
+      >
+        {/* Menu Header */}
+        <div className="p-4 flex items-center justify-between">
+          {menuOpen && (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                <span className="text-lg font-bold text-primary">P</span>
+              </div>
+              <div className="overflow-hidden">
+                <h2 className="font-semibold text-sm">PageBuilder</h2>
+                <p className="text-xs text-muted-foreground truncate max-w-[120px]">{user.email}</p>
+              </div>
             </div>
+          )}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="shrink-0"
+          >
+            {menuOpen ? <ChevronLeft className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </Button>
+        </div>
+        
+        <Separator />
+        
+        {/* Menu Items */}
+        <nav className="flex-1 p-2">
+          {userMenuItems.map((item) => (
+            <NavLink 
+              key={item.title}
+              to={item.url} 
+              end={item.url === '/dashboard'}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors mb-1",
+                !menuOpen && "justify-center px-2"
+              )}
+              activeClassName="bg-primary/10 text-primary font-medium"
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              {menuOpen && <span>{item.title}</span>}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Logout */}
+        <div className="p-4">
+          <Button 
+            variant="ghost" 
+            className={cn(
+              "w-full gap-3 text-muted-foreground hover:text-destructive",
+              menuOpen ? "justify-start" : "justify-center px-2"
+            )}
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            {menuOpen && "Sair"}
+          </Button>
+        </div>
+      </aside>
+
+      {/* Column 2 - Page Editor */}
+      <main className="flex-1 overflow-auto">
+        <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border/50 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-lg font-semibold">Editor de Página</h1>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2">
                 <span className="text-sm text-muted-foreground truncate max-w-[200px]">
@@ -154,7 +249,9 @@ export default function Settings() {
               </div>
             </div>
           </div>
+        </header>
 
+        <div className="p-6">
           <Tabs defaultValue="links" className="space-y-4">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="links" className="flex items-center gap-2">
@@ -173,13 +270,11 @@ export default function Settings() {
 
             {/* Links Tab */}
             <TabsContent value="links" className="space-y-4">
-              {/* Add New Link Button */}
               <Button onClick={addLink} className="w-full h-12 text-base" variant="default">
                 <Plus className="h-5 w-5 mr-2" />
                 Adicionar Novo Link
               </Button>
 
-              {/* Add Link Form */}
               {(newLinkLabel || newLinkUrl || pageConfig.links.length === 0) && (
                 <Card className="border-primary/30 border-dashed">
                   <CardContent className="pt-4 space-y-3">
@@ -199,7 +294,6 @@ export default function Settings() {
                 </Card>
               )}
 
-              {/* Existing Links */}
               <div className="space-y-3">
                 {pageConfig.links.map((link) => (
                   <Card key={link.id} className="border-border/50">
@@ -248,7 +342,6 @@ export default function Settings() {
 
             {/* Appearance Tab */}
             <TabsContent value="appearance" className="space-y-4">
-              {/* Color Palettes */}
               <Card className="border-border/50">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Temas</CardTitle>
@@ -280,7 +373,6 @@ export default function Settings() {
                 </CardContent>
               </Card>
 
-              {/* Custom Colors */}
               <Card className="border-border/50">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Cores Personalizadas</CardTitle>
@@ -379,7 +471,6 @@ export default function Settings() {
                 </CardContent>
               </Card>
 
-              {/* Header Image */}
               <Card className="border-border/50">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -414,7 +505,6 @@ export default function Settings() {
 
             {/* Profile Tab */}
             <TabsContent value="profile" className="space-y-4">
-              {/* Profile Photo */}
               <Card className="border-border/50">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Foto de Perfil</CardTitle>
@@ -454,7 +544,6 @@ export default function Settings() {
                 </CardContent>
               </Card>
 
-              {/* Account Info */}
               <Card className="border-border/50">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Informações da Conta</CardTitle>
@@ -484,13 +573,13 @@ export default function Settings() {
             </TabsContent>
           </Tabs>
         </div>
+      </main>
 
-        {/* Right Panel - Live Preview */}
-        <div className="hidden lg:flex flex-col items-center justify-start pt-8 px-4 bg-muted/30 rounded-2xl min-w-[340px]">
-          <p className="text-sm text-muted-foreground mb-4">Preview ao vivo</p>
-          <PhonePreview config={pageConfig} userName={user.name} />
-        </div>
-      </div>
-    </DashboardLayout>
+      {/* Column 3 - Live Preview */}
+      <aside className="hidden lg:flex flex-col items-center justify-start pt-8 px-6 bg-muted/50 border-l border-border/50 min-w-[360px] shrink-0">
+        <p className="text-sm text-muted-foreground mb-4">Preview ao vivo</p>
+        <PhonePreview config={pageConfig} userName={user.name} />
+      </aside>
+    </div>
   );
 }
