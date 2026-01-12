@@ -12,3 +12,4 @@ Allow: /
 
 User-agent: *
 Allow: /
+Sitemap: https://seudominio.com.br/_v1/sitemap.xml

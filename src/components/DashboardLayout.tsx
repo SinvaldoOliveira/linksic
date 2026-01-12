@@ -1,10 +1,10 @@
 import { ReactNode, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  Sidebar, 
-  SidebarContent, 
-  SidebarGroup, 
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuButton,
@@ -16,19 +16,20 @@ import { NavLink } from '@/components/NavLink';
 import { LayoutDashboard, FileText, Settings, LogOut, Users, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { InstallPrompt } from '@/components/InstallPrompt';
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  type: 'user' | 'admin';
+  type: 'user' | 'admin' | 'super';
 }
 
 const userMenuItems = [
   { title: 'Visão Geral', url: '/dashboard', icon: LayoutDashboard },
-  { title: 'Minha Página', url: '/dashboard/my-page', icon: FileText },
   { title: 'Configurações', url: '/dashboard/settings', icon: Settings },
 ];
 
-const adminMenuItems = [
+const adminBaseMenuItems = [
   { title: 'Visão Geral', url: '/admin', icon: LayoutDashboard },
   { title: 'Usuários', url: '/admin/users', icon: Users },
 ];
@@ -36,21 +37,35 @@ const adminMenuItems = [
 export function DashboardLayout({ children, type }: DashboardLayoutProps) {
   const { user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
-  const menuItems = type === 'admin' ? adminMenuItems : userMenuItems;
+  const isSuperAdmin = !!user && (user.role === 'super_admin' || user.email === 'sinvaldo.p.oliveira@gmail.com');
+  const isAdminRole = !!user && (user.role === 'admin' || isSuperAdmin);
+  const menuItems = (() => {
+    if (type === 'admin' || type === 'super') {
+      const items = [...adminBaseMenuItems];
+      if (user?.role === 'super_admin') {
+        items.push({ title: 'Super Admin', url: '/admin/super', icon: Shield });
+      }
+      return items;
+    }
+    return userMenuItems;
+  })();
 
   useEffect(() => {
     if (!isLoading && !user) {
       navigate('/auth');
     }
     if (!isLoading && user) {
-      if (type === 'admin' && user.role !== 'admin') {
+      if (type === 'admin' && !isAdminRole) {
         navigate('/dashboard');
       }
-      if (type === 'user' && user.role === 'admin') {
+      if (type === 'super' && !isSuperAdmin) {
+        navigate('/admin');
+      }
+      if (type === 'user' && isAdminRole) {
         navigate('/admin');
       }
     }
-  }, [user, isLoading, navigate, type]);
+  }, [user, isLoading, navigate, type, isAdminRole]);
 
   const handleLogout = () => {
     logout();
@@ -65,7 +80,13 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
     );
   }
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground">Redirecionando...</div>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>
@@ -73,22 +94,26 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
         <Sidebar className="border-r border-border/50">
           <div className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 flex items-center justify-center">
                 {type === 'admin' ? (
                   <Shield className="h-5 w-5 text-primary" />
                 ) : (
-                  <span className="text-lg font-bold text-primary">P</span>
+                  <img 
+                    src="/logo.png" 
+                    alt="LinkSic Logo" 
+                    className="w-full h-full object-contain"
+                  />
                 )}
               </div>
               <div>
-                <h2 className="font-semibold text-sm">{type === 'admin' ? 'Admin' : 'PageBuilder'}</h2>
+                <h2 className="font-semibold text-sm">{type === 'admin' ? 'Admin' : type === 'super' ? 'Super Admin' : 'LinkSic'}</h2>
                 <p className="text-xs text-muted-foreground truncate max-w-[120px]">{user.email}</p>
               </div>
             </div>
           </div>
-          
+
           <Separator />
-          
+
           <SidebarContent className="p-2">
             <SidebarGroup>
               <SidebarGroupContent>
@@ -96,8 +121,8 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
                   {menuItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
-                        <NavLink 
-                          to={item.url} 
+                        <NavLink
+                          to={item.url}
                           end={item.url === '/dashboard' || item.url === '/admin'}
                           className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                           activeClassName="bg-primary/10 text-primary font-medium"
@@ -114,8 +139,8 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
           </SidebarContent>
 
           <div className="mt-auto p-4">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
               onClick={handleLogout}
             >
@@ -126,12 +151,16 @@ export function DashboardLayout({ children, type }: DashboardLayoutProps) {
         </Sidebar>
 
         <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border/50 px-6 py-4">
+          <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border/50 px-6 py-4 flex justify-between items-center">
             <div className="flex items-center gap-4">
               <SidebarTrigger />
               <h1 className="text-lg font-semibold">
-                {type === 'admin' ? 'Painel Administrativo' : 'Dashboard'}
+                {type === 'admin' ? 'Painel Administrativo' : type === 'super' ? 'Super Admin' : 'Dashboard'}
               </h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <InstallPrompt />
+              <ThemeToggle />
             </div>
           </header>
           <div className="p-6">

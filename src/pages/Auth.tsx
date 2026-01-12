@@ -39,12 +39,7 @@ export default function Auth() {
 
     if (result.success) {
       toast({ title: 'Sucesso', description: 'Login realizado com sucesso!' });
-      // Redirect based on role
-      const storedUser = localStorage.getItem('currentUser');
-      if (storedUser) {
-        const user = JSON.parse(storedUser);
-        navigate(user.role === 'admin' ? '/admin' : '/dashboard');
-      }
+      navigate('/dashboard');
     } else {
       toast({ title: 'Erro', description: result.error, variant: 'destructive' });
     }
@@ -84,10 +79,12 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
       <Card className="w-full max-w-md shadow-xl border-border/50">
         <CardHeader className="text-center space-y-2">
-          <div className="mx-auto w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-2">
-            <span className="text-2xl font-bold text-primary">P</span>
-          </div>
-          <CardTitle className="text-2xl font-bold">PageBuilder</CardTitle>
+          <img 
+            src="/logo.png" 
+            alt="LinkSic" 
+            className="mx-auto w-32 h-32 mb-6 object-contain"
+          />
+          <CardTitle className="text-2xl font-bold">LinkSic</CardTitle>
           <CardDescription>Crie sua página única personalizada</CardDescription>
         </CardHeader>
         <CardContent>

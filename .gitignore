@@ -10,7 +10,13 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist_*
 *.local
+.env
+
+# Imagens e arquivos de banco
+*.sql
+*.jpg
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +28,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Arquivos de ambiente local
+.trae/
+.htaccess
+dev-dist/

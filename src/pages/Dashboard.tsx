@@ -10,7 +10,7 @@ export default function Dashboard() {
 
   if (!user) return null;
 
-  const pageUrl = `/u/${user.pageSlug}`;
+  const pageUrl = `${window.location.origin}/u/${user.pageSlug}`;
 
   return (
     <DashboardLayout type="user">

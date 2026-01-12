@@ -9,7 +9,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
-    setUsers(getAllUsers());
+    getAllUsers().then(setUsers);
   }, []);
 
   const activeUsers = users.filter(u => u.status === 'active').length;
@@ -81,11 +81,11 @@ export default function AdminDashboard() {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                         <span className="font-semibold text-primary">
-                          {user.name.charAt(0).toUpperCase()}
+                          {(user.name || user.email || '?').charAt(0).toUpperCase()}
                         </span>
                       </div>
                       <div>
-                        <p className="font-medium text-sm">{user.name}</p>
+                        <p className="font-medium text-sm">{user.name || user.email || 'Usuário'}</p>
                         <p className="text-xs text-muted-foreground">{user.email}</p>
                       </div>
                     </div>

@@ -7,11 +7,13 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
-import MyPage from "./pages/MyPage";
 import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminUsers from "./pages/AdminUsers";
+import AdminWebhooks from "./pages/AdminWebhooks";
+import SuperAdmin from "./pages/SuperAdmin";
 import UserPublicPage from "./pages/UserPublicPage";
+import PublicPage from "./pages/PublicPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,11 +29,13 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard/my-page" element={<MyPage />} />
             <Route path="/dashboard/settings" element={<Settings />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<AdminUsers />} />
-            <Route path="/u/:slug" element={<UserPublicPage />} />
+            <Route path="/admin/webhooks" element={<AdminWebhooks />} />
+            <Route path="/admin/super" element={<SuperAdmin />} />
+            {/* Rota antiga mantida por compatibilidade se necessário, mas a nova é PublicPage */}
+            <Route path="/u/:slug" element={<PublicPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
