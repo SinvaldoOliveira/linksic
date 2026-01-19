@@ -44,6 +44,7 @@ export function PhonePreview({ config, userName, publicUrl, slug }: PhonePreview
                 src={config.headerImage} 
                 alt="Header" 
                 className="w-full h-full object-cover"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             </div>
           )}
@@ -57,14 +58,15 @@ export function PhonePreview({ config, userName, publicUrl, slug }: PhonePreview
                   src={config.profilePhoto} 
                   alt="Profile" 
                   className="w-20 h-20 rounded-full object-cover border-4"
-                  style={{ borderColor: config.colorPalette.primary }}
+                  style={{ borderColor: config.colorPalette.primary ?? '#000' }}
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
                 />
               ) : (
                 <div 
                   className="w-20 h-20 rounded-full flex items-center justify-center border-4"
                   style={{ 
-                    backgroundColor: config.colorPalette.secondary + '40',
-                    borderColor: config.colorPalette.primary 
+                    backgroundColor: (config.colorPalette.secondary ?? '#000') + '40',
+                    borderColor: config.colorPalette.primary ?? '#000'
                   }}
                 >
                   <User className="w-10 h-10" style={{ color: config.colorPalette.text }} />
@@ -139,7 +141,7 @@ export function PhonePreview({ config, userName, publicUrl, slug }: PhonePreview
                       rel="noopener noreferrer"
                       className="w-full py-3 px-4 rounded-lg text-center font-medium transition-all hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2"
                       style={{
-                        backgroundColor: config.colorPalette.primary,
+                        backgroundColor: config.colorPalette.primary ?? '#000',
                         color: config.colorPalette.text
                       }}
                     >
@@ -172,7 +174,7 @@ export function PhonePreview({ config, userName, publicUrl, slug }: PhonePreview
                     key={link.id}
                     className="w-full py-3 px-4 rounded-lg text-center font-medium transition-all hover:scale-[1.02] cursor-pointer"
                     style={{
-                      backgroundColor: config.colorPalette.primary,
+                      backgroundColor: config.colorPalette.primary ?? '#000',
                       color: config.colorPalette.text
                     }}
                   >

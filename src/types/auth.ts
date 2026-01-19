@@ -21,11 +21,17 @@ export interface PageLink {
   videoId?: string;
   whatsappPhone?: string;
   whatsappMessage?: string;
+  clicks?: number;
 }
 
 export interface PageConfig {
   displayName?: string;
+  profileTitle?: string;
   bio?: string;
+  companyName?: string;
+  jobTitle?: string;
+  location?: string;
+  displayOnClub?: boolean;
   profilePhoto: string;
   headerImage: string;
   links: PageLink[];
@@ -52,6 +58,8 @@ export interface AuthContextType {
   logout: () => void;
   updateTheme: (theme: 'light' | 'dark') => Promise<void>;
   updatePageSlug: (newSlug: string) => Promise<void>;
+  updateProfileName: (newName: string) => Promise<void>;
+  updatePageUserName: (newName: string) => Promise<void>;
   checkSlugAvailability: (newSlug: string, currentUserId: string) => Promise<boolean>;
 }
 

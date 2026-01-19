@@ -30,8 +30,8 @@ export default defineConfig(({ mode }) => ({
       },
       includeAssets: ['favicon.ico', 'favicon.png', 'robots.txt'],
       manifest: {
-        name: 'LinkSic',
-        short_name: 'LinkSic',
+        name: 'Mylinksss',
+        short_name: 'Mylinksss',
         description: 'Sua página de links personalizada com automação e vendas.',
         theme_color: '#8B5CF6',
         background_color: '#ffffff',
@@ -58,7 +58,7 @@ export default defineConfig(({ mode }) => ({
         ]
       }
     })
-    
+
   ].filter(Boolean),
   resolve: {
     alias: {

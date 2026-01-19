@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { User, Image, Link, Palette, Plus, Trash2, ExternalLink, Copy, Menu, ChevronLeft, LayoutDashboard, FileText, Settings as SettingsIcon, LogOut, Check, X, Pencil, GripVertical, ImageIcon } from 'lucide-react';
+import { User, Image, Link, Palette, Plus, Trash2, ExternalLink, Copy, Menu, ChevronLeft, LayoutDashboard, FileText, Settings as SettingsIcon, LogOut, Check, X, Pencil, GripVertical, ImageIcon, Bold, Italic, List, ChevronDown, ChevronUp, Briefcase, Shield } from 'lucide-react';
 import { PageConfig, PageLink, DEFAULT_PAGE_CONFIG } from '@/types/auth';
 import { PhonePreview } from '@/components/PhonePreview';
 import { useNavigate } from 'react-router-dom';
@@ -21,7 +21,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { UpgradeModal } from '@/components/UpgradeModal'; // Importar o modal
+import { ProPlansModal } from '@/components/ProPlansModal';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import {
   DndContext,
   closestCenter,
@@ -57,9 +59,9 @@ function SortableLinkItem({ link, pageConfig, setPageConfig, updateLink, removeL
   };
 
   return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
+    <div
+      ref={setNodeRef}
+      style={style}
       className={cn(
         "mb-3",
         isDragging && "opacity-75 shadow-lg rotate-1"
@@ -68,9 +70,9 @@ function SortableLinkItem({ link, pageConfig, setPageConfig, updateLink, removeL
       <Card className="overflow-hidden">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-3">
-            <div 
-              {...attributes} 
-              {...listeners} 
+            <div
+              {...attributes}
+              {...listeners}
               className="cursor-grab text-muted-foreground hover:text-foreground touch-none p-1 hover:bg-accent rounded"
             >
               <GripVertical className="h-5 w-5" />
@@ -95,7 +97,8 @@ function SortableLinkItem({ link, pageConfig, setPageConfig, updateLink, removeL
                 onChange={(e) => {
                   const newConfig = {
                     ...pageConfig,
-                    links: pageConfig.links.map((l: any) => l.id === link.id ? { ...l, label: e.target.value } : l)
+                    links: pageConfig.links.map((l: any) => l.id === link.id ? { ...l, label: e.target.value } : l),
+                    location: pageConfig.location // Preserva location
                   };
                   setPageConfig(newConfig);
                 }}
@@ -108,7 +111,7 @@ function SortableLinkItem({ link, pageConfig, setPageConfig, updateLink, removeL
               checked={link.enabled}
               onCheckedChange={() => toggleLink(link.id)}
             />
-            
+
             <Button
               variant="ghost"
               size="icon"
@@ -118,7 +121,7 @@ function SortableLinkItem({ link, pageConfig, setPageConfig, updateLink, removeL
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
-          
+
           <div className="pl-10">
             <Input
               value={link.url}
@@ -126,7 +129,8 @@ function SortableLinkItem({ link, pageConfig, setPageConfig, updateLink, removeL
               onChange={(e) => {
                 const newConfig = {
                   ...pageConfig,
-                  links: pageConfig.links.map((l: any) => l.id === link.id ? { ...l, url: e.target.value } : l)
+                  links: pageConfig.links.map((l: any) => l.id === link.id ? { ...l, url: e.target.value } : l),
+                  location: pageConfig.location // Preserva location
                 };
                 setPageConfig(newConfig);
               }}
@@ -189,7 +193,7 @@ const COLOR_PALETTES = [
 ];
 
 export default function Settings() {
-  const { user, logout, isLoading, updatePageSlug, checkSlugAvailability } = useAuth();
+  const { user, logout, isLoading, updatePageSlug, updateProfileName, updatePageUserName, checkSlugAvailability } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [pageConfig, setPageConfig] = useState<PageConfig>(DEFAULT_PAGE_CONFIG);
@@ -206,7 +210,7 @@ export default function Settings() {
   const [headerPreviewUrl, setHeaderPreviewUrl] = useState<string>('');
   const [headerPendingFile, setHeaderPendingFile] = useState<File | null>(null);
   const [newLinkType, setNewLinkType] = useState<'button' | 'banner' | 'youtube' | 'whatsapp'>('button');
-  const [allowedTypes, setAllowedTypes] = useState<Array<'button'|'banner'|'youtube'|'whatsapp'>>(['button','banner']);
+  const [allowedTypes, setAllowedTypes] = useState<Array<'button' | 'banner' | 'youtube' | 'whatsapp'>>(['button', 'banner']);
   const [newLinkImage, setNewLinkImage] = useState('');
   const [isUploadingLinkImage, setIsUploadingLinkImage] = useState(false);
   const [newYouTubeUrl, setNewYouTubeUrl] = useState('');
@@ -214,9 +218,23 @@ export default function Settings() {
   const [newWhatsappPhone, setNewWhatsappPhone] = useState('');
   const [newWhatsappMessage, setNewWhatsappMessage] = useState('');
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false); // Estado para o modal
+  const [showProPlansModal, setShowProPlansModal] = useState(false); // Estado para o modal de planos Pro
 
-  // TODO: Substituir pela sua URL de checkout real da Kiwify
-  const kiwifyCheckoutUrl = 'https://pay.kiwify.com.br/9NE5HJQ';
+  // Estado para controlar seções expandidas
+  const [expandedSections, setExpandedSections] = useState({
+    profile: true,
+    clubCard: true,
+    banner: true,
+    slug: true,
+    theme: true
+  });
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const STRIPE_PRO_ANNUAL_URL = 'https://buy.stripe.com/test_4gM7sNgMA34Zaste2557W00';
+  const STRIPE_PRO_MONTHLY_URL = 'https://buy.stripe.com/test_7sY28t9k8bBv445aPT57W01';
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -277,11 +295,11 @@ export default function Settings() {
       setPageConfig((currentConfig) => {
         const oldIndex = currentConfig.links.findIndex((item) => item.id === active.id);
         const newIndex = currentConfig.links.findIndex((item) => item.id === over.id);
-        
+
         const newLinks = arrayMove(currentConfig.links, oldIndex, newIndex);
 
         saveOrderDebounced(newLinks);
-        
+
         return {
           ...currentConfig,
           links: newLinks,
@@ -322,7 +340,10 @@ export default function Settings() {
     if (!isLoading && !user) {
       navigate('/auth');
     }
-    if (!isLoading && user && user.role === 'admin') {
+    // Allow access if super admin email or role
+    const isSuperAdmin = user && (user.email === 'sinvaldo.p.oliveira@gmail.com' || user.role === 'super_admin');
+
+    if (!isLoading && user && user.role === 'admin' && !isSuperAdmin) {
       navigate('/admin');
     }
   }, [user, isLoading, navigate]);
@@ -350,6 +371,7 @@ export default function Settings() {
           const dbLinks = page.config.links || [];
           setPageConfig(currentConfig => ({
             ...page.config,
+            profileTitle: page.config.profileTitle || page.userName, // Usa user_name da tabela pages
             links: dbLinks.length > 0 ? dbLinks : currentConfig.links,
           }));
 
@@ -443,12 +465,12 @@ export default function Settings() {
     }
 
     if (newLinkType === 'banner' && !newLinkImage) {
-        toast({ title: 'Erro', description: 'Faça upload da imagem para o banner', variant: 'destructive' });
-        return;
+      toast({ title: 'Erro', description: 'Faça upload da imagem para o banner', variant: 'destructive' });
+      return;
     }
     if (newLinkType === 'button' && (!newLinkLabel || !newLinkUrl)) {
-        toast({ title: 'Erro', description: 'Preencha o título do botão', variant: 'destructive' });
-        return;
+      toast({ title: 'Erro', description: 'Preencha o título do botão', variant: 'destructive' });
+      return;
     }
     if (newLinkType === 'youtube') {
       if (!newYouTubeUrl || !videoId) {
@@ -655,6 +677,49 @@ export default function Settings() {
     setHeaderPendingFile(null);
   };
 
+  const bioInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertFormatting = (format: 'bold' | 'italic' | 'list') => {
+    if (!bioInputRef.current) return;
+
+    const textarea = bioInputRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const before = text.substring(0, start);
+    const selection = text.substring(start, end);
+    const after = text.substring(end);
+
+    let newText = '';
+    let newCursorPos = 0;
+
+    if (format === 'bold') {
+      newText = `${before}**${selection}**${after}`;
+      newCursorPos = selection ? end + 4 : start + 2;
+    } else if (format === 'italic') {
+      newText = `${before}*${selection}*${after}`;
+      newCursorPos = selection ? end + 2 : start + 1;
+    } else if (format === 'list') {
+      const listPrefix = '\n- ';
+      newText = `${before}${listPrefix}${selection}${after}`;
+      newCursorPos = end + listPrefix.length;
+    }
+
+    // Check if new length exceeds limit
+    if (newText.length > 100) {
+      toast({ title: 'Limite excedido', description: 'A formatação ultrapassa o limite de 100 caracteres.', variant: 'destructive' });
+      return;
+    }
+
+    setPageConfig({ ...pageConfig, bio: newText });
+
+    // Restore focus and cursor
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
   return (
     <div className="min-h-screen flex bg-background text-foreground">
       <aside
@@ -667,7 +732,7 @@ export default function Settings() {
           <div className="p-4 border-b flex items-center justify-between">
             <div className="flex items-center gap-2">
               <img src="/logo.png" alt="Logo" className="h-8" />
-              <span className="font-bold text-lg">LinkSinc</span>
+              <span className="font-bold text-lg">Mylinksss</span>
             </div>
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMenuOpen(false)}>
               <ChevronLeft className="h-5 w-5" />
@@ -692,6 +757,18 @@ export default function Settings() {
               <SettingsIcon className="h-4 w-4" />
               <span>Configurações</span>
             </NavLink>
+
+            {(user.email === 'sinvaldo.p.oliveira@gmail.com' || user.role === 'super_admin') && (
+              <NavLink
+                to="/admin"
+                end
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-red-400 hover:text-red-500 hover:bg-red-500/10 transition-colors border border-red-500/20"
+                activeClassName="bg-red-500/10 text-red-500 font-medium"
+              >
+                <Shield className="h-4 w-4" />
+                <span>Painel Admin</span>
+              </NavLink>
+            )}
             <a
               href={publicUrl}
               target="_blank"
@@ -715,7 +792,7 @@ export default function Settings() {
                 <p className="font-semibold truncate">{user.name}</p>
                 <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                 {user.plan_type && (
-                  <Badge 
+                  <Badge
                     variant={user.plan_type === 'pro' ? 'default' : 'secondary'}
                     className="mt-2"
                   >
@@ -727,6 +804,40 @@ export default function Settings() {
             <Button variant="outline" className="w-full" onClick={logout}>
               <LogOut className="mr-2 h-4 w-4" /> Sair
             </Button>
+
+            {/* Pro Upgrade Banner - Only for free users */}
+            {(!user.plan_type || user.plan_type === 'free') && (
+              <div className="mt-4">
+                <div
+                  className="relative bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 rounded-2xl p-6 cursor-pointer overflow-hidden transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                  onClick={() => setShowProPlansModal(true)}
+                >
+                  {/* Background decorative elements */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full -ml-12 -mb-12" />
+
+                  <div className="relative z-10">
+                    <div className="mb-4">
+                      <div className="text-white text-sm font-medium mb-1">my</div>
+                      <div className="text-white text-2xl font-bold">linksss.com</div>
+                      <div className="text-white/90 text-xs mt-1">Sua bio link personalizada</div>
+                    </div>
+
+                    <h3 className="text-white text-xl font-bold mb-2">Seja Pró</h3>
+
+                    <Button
+                      className="w-full bg-white text-orange-600 hover:bg-white/90 font-semibold rounded-xl shadow-lg"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowProPlansModal(true);
+                      }}
+                    >
+                      Assinar agora
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </aside>
@@ -928,185 +1039,357 @@ export default function Settings() {
               </TabsContent>
               <TabsContent value="appearance" className="pt-6 space-y-6">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Perfil</CardTitle>
-                    <CardDescription>Informações que aparecem na sua página.</CardDescription>
+                  <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                    <div className="flex flex-col space-y-1.5">
+                      <CardTitle>Perfil</CardTitle>
+                      <CardDescription>Informações que aparecem na sua página.</CardDescription>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => toggleSection('profile')}>
+                      {expandedSections.profile ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center border overflow-hidden">
-                        {isUploadingPhoto ? (
-                          <Loader2 className="h-6 w-6 animate-spin" />
-                        ) : pageConfig.profilePhoto ? (
-                          <img src={pageConfig.profilePhoto} alt="Foto de Perfil" className="w-full h-full object-cover" loading="lazy" />
-                        ) : (
-                          <User className="h-8 w-8 text-muted-foreground" />
-                        )}
-                      </div>
-                      <Input id="photo-upload" type="file" accept="image/jpeg,image/png" onChange={(e) => handleFileUpload(e, 'photo')} className="hidden" />
-                      <Button asChild variant="outline">
-                        <Label htmlFor="photo-upload">
-                          <Upload className="mr-2 h-4 w-4" />
-                          Carregar foto
-                        </Label>
-                      </Button>
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="profile-title">Título</Label>
-                      <Input
-                        id="profile-title"
-                        value={pageConfig.profileTitle}
-                        onChange={(e) => setPageConfig({ ...pageConfig, profileTitle: e.target.value })}
-                        onBlur={() => savePageConfig(pageConfig)}
-                        placeholder="@seuusuario"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="profile-bio">Bio</Label>
-                      <Input
-                        id="profile-bio"
-                        value={pageConfig.bio}
-                        onChange={(e) => setPageConfig({ ...pageConfig, bio: e.target.value })}
-                        onBlur={() => savePageConfig(pageConfig)}
-                        placeholder="Uma breve descrição sobre você"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Banner do topo</CardTitle>
-                    <CardDescription>Imagem exibida no topo do seu mini site.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="header-upload">Imagem do banner (JPEG/PNG, máx. 5MB)</Label>
-                      <div className="w-full h-24 bg-muted rounded-md flex items-center justify-center border overflow-hidden">
-                        {isUploadingHeader ? (
-                          <Loader2 className="h-6 w-6 animate-spin" />
-                        ) : headerPreviewUrl ? (
-                          <img src={headerPreviewUrl} alt="Preview do banner" className="w-full h-full object-cover" loading="lazy" />
-                        ) : pageConfig.headerImage ? (
-                          <img src={pageConfig.headerImage} alt="Banner atual" className="w-full h-full object-cover" loading="lazy" />
-                        ) : (
-                          <div className="text-sm text-muted-foreground">Nenhum banner definido</div>
-                        )}
-                      </div>
-                      <Input id="header-upload" type="file" accept="image/jpeg,image/png" onChange={handleHeaderSelect} className="hidden" />
-                      <div className="flex gap-2">
+                  {expandedSections.profile && (
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center border overflow-hidden">
+                          {isUploadingPhoto ? (
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                          ) : pageConfig.profilePhoto ? (
+                            <img src={pageConfig.profilePhoto} alt="Foto de Perfil" className="w-full h-full object-cover" loading="lazy" />
+                          ) : (
+                            <User className="h-8 w-8 text-muted-foreground" />
+                          )}
+                        </div>
+                        <Input id="photo-upload" type="file" accept="image/jpeg,image/png" onChange={(e) => handleFileUpload(e, 'photo')} className="hidden" />
                         <Button asChild variant="outline">
-                          <Label htmlFor="header-upload">
+                          <Label htmlFor="photo-upload">
                             <Upload className="mr-2 h-4 w-4" />
-                            Selecionar imagem
+                            Carregar foto
                           </Label>
                         </Button>
-                        <Button onClick={confirmHeaderUpload} disabled={!headerPendingFile || isUploadingHeader}>
-                          Salvar banner
-                        </Button>
-                        {headerPendingFile && (
-                          <Button variant="ghost" onClick={cancelHeaderPreview}>
-                            Cancelar
-                          </Button>
-                        )}
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost">Ajuda</Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-80 text-sm">
-                            <p className="font-medium mb-2">Como funciona o banner:</p>
-                            <ul className="space-y-1">
-                              <li>• Formatos permitidos: JPEG e PNG</li>
-                              <li>• Tamanho máximo: 5MB</li>
-                              <li>• Selecione a imagem para ver o preview</li>
-                              <li>• Clique em “Salvar banner” para aplicar</li>
-                              <li>• O banner aparece no topo do preview e da página pública</li>
-                            </ul>
-                          </PopoverContent>
-                        </Popover>
                       </div>
-                    </div>
-                  </CardContent>
+                      <div className="space-y-1">
+                        <div className="flex justify-between">
+                          <Label htmlFor="profile-title">Título</Label>
+                          <span className="text-xs text-muted-foreground">
+                            {pageConfig.profileTitle?.length || 0}/50
+                          </span>
+                        </div>
+                        <Input
+                          id="profile-title"
+                          value={pageConfig.profileTitle || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val.length <= 50) {
+                              setPageConfig({ ...pageConfig, profileTitle: val });
+                            }
+                          }}
+                          onBlur={async () => {
+                            const newName = pageConfig.profileTitle || '';
+                            const updatedConfig = {
+                              ...pageConfig,
+                              profileTitle: newName,
+                              displayName: newName // Manter sincronizado para retrocompatibilidade
+                            };
+
+                            // 1. Salvar configurações da página (JSON)
+                            await savePageConfig(updatedConfig);
+
+                            // 2. Atualizar pages.user_name se houve mudança
+                            if (newName) {
+                              try {
+                                console.log('Atualizando pages.user_name para:', newName);
+                                await updatePageUserName(newName);
+                                toast({ title: 'Perfil atualizado', description: 'Nome atualizado com sucesso.' });
+                              } catch (error: any) {
+                                console.error('Erro ao atualizar pages.user_name:', error);
+                                toast({ title: 'Aviso', description: 'Configuração salva, mas houve um erro ao atualizar o nome da página.' + (error.message ? ` (${error.message})` : ''), variant: 'warning' });
+                              }
+                            }
+                          }}
+                          placeholder="Seu nome"
+                          maxLength={50}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center">
+                          <Label htmlFor="profile-bio">Bio</Label>
+                          <span className="text-xs text-muted-foreground">
+                            {pageConfig.bio?.length || 0}/100
+                          </span>
+                        </div>
+
+                        {/* Formatting Toolbar */}
+                        <div className="flex items-center gap-1 mb-1 p-1 bg-muted rounded-md border w-fit">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => insertFormatting('bold')}
+                            title="Negrito"
+                          >
+                            <Bold className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => insertFormatting('italic')}
+                            title="Itálico"
+                          >
+                            <Italic className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => insertFormatting('list')}
+                            title="Lista"
+                          >
+                            <List className="h-3 w-3" />
+                          </Button>
+                        </div>
+
+                        <Textarea
+                          id="profile-bio"
+                          ref={bioInputRef}
+                          value={pageConfig.bio || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val.length <= 100) {
+                              setPageConfig({ ...pageConfig, bio: val });
+                            }
+                          }}
+                          onBlur={() => savePageConfig(pageConfig)}
+                          placeholder="Uma breve descrição sobre você"
+                          className="resize-none min-h-[80px]"
+                          maxLength={100}
+                        />
+                      </div>
+                    </CardContent>
+                  )}
                 </Card>
 
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Link da Página</CardTitle>
-                    <CardDescription>Personalize a URL da sua página pública.</CardDescription>
+                  <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                    <div className="flex flex-col space-y-1.5">
+                      <CardTitle>Card Club My Linksss</CardTitle>
+                      <CardDescription>Configure como seu card aparece na comunidade.</CardDescription>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => toggleSection('clubCard')}>
+                      {expandedSections.clubCard ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
                   </CardHeader>
-                  <CardContent>
-                    {isEditingSlug ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground text-sm whitespace-nowrap">{window.location.origin}/u/</span>
+                  {expandedSections.clubCard && (
+                    <CardContent className="space-y-4">
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label htmlFor="company-name">Nome da Empresa</Label>
                           <Input
-                            value={editedSlug}
-                            onChange={(e) => setEditedSlug(normalizeSlug(e.target.value))}
-                            className="h-9"
+                            id="company-name"
+                            value={pageConfig.companyName || ''}
+                            onChange={(e) => setPageConfig({ ...pageConfig, companyName: e.target.value })}
+                            onBlur={() => savePageConfig(pageConfig)}
+                            placeholder="Ex: Minha Agência"
                           />
                         </div>
-                        {slugError && <p className="text-sm text-destructive">{slugError}</p>}
-                        {slugAvailabilityMessage && <p className="text-sm text-green-600">{slugAvailabilityMessage}</p>}
-                        <div className="flex gap-2">
-                          <Button onClick={handleSlugCheck} size="sm" disabled={isCheckingSlug}>
-                            {isCheckingSlug ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            Verificar
-                          </Button>
-                          <Button onClick={handleSlugSave} size="sm" variant="default">Salvar</Button>
-                          <Button onClick={() => setIsEditingSlug(false)} size="sm" variant="ghost">Cancelar</Button>
+                        <div className="space-y-1">
+                          <Label htmlFor="job-title">Cargo</Label>
+                          <Input
+                            id="job-title"
+                            value={pageConfig.jobTitle || ''}
+                            onChange={(e) => setPageConfig({ ...pageConfig, jobTitle: e.target.value })}
+                            onBlur={() => savePageConfig(pageConfig)}
+                            placeholder="Ex: Designer Sênior"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="location">Localização (Cidade)</Label>
+                          <Input
+                            id="location"
+                            value={pageConfig.location || ''}
+                            onChange={(e) => setPageConfig({ ...pageConfig, location: e.target.value })}
+                            onBlur={() => savePageConfig(pageConfig)}
+                            placeholder="Ex: São Paulo, SP"
+                          />
+                        </div>
+                        <div className="flex items-center space-x-2 pt-2">
+                          <Switch
+                            id="display-on-club"
+                            checked={pageConfig.displayOnClub || false}
+                            onCheckedChange={(checked) => {
+                              const newConfig = { ...pageConfig, displayOnClub: checked };
+                              setPageConfig(newConfig);
+                              savePageConfig(newConfig);
+                            }}
+                          />
+                          <Label htmlFor="display-on-club" className="cursor-pointer">
+                            Exibir meu card na página Club My Linksss
+                          </Label>
                         </div>
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-between p-2 rounded-md bg-muted">
-                        <span className="text-sm text-muted-foreground">{publicUrl}</span>
-                        <Button onClick={handleSlugEdit} size="sm" variant="outline">
-                          <Pencil className="mr-2 h-3 w-3" />
-                          Editar
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
+                    </CardContent>
+                  )}
                 </Card>
 
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Tema</CardTitle>
-                    <CardDescription>Escolha uma paleta de cores para sua página.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {COLOR_PALETTES.map(palette => (
-                        <button
-                          key={palette.name}
-                          onClick={() => handlePaletteSelect(palette)}
-                          className={cn(
-                            "p-2 rounded-lg border-2 transition-all",
-                            pageConfig.colorPalette?.primary === palette.primary ? "border-primary" : "border-transparent hover:border-muted-foreground/50"
-                          )}
-                        >
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-5 h-5 rounded-full" style={{ backgroundColor: palette.primary }}></div>
-                            <div className="w-5 h-5 rounded-full" style={{ backgroundColor: palette.secondary }}></div>
-                          </div>
-                          <div className="w-full h-8 rounded" style={{ backgroundColor: palette.background }}></div>
-                          <p className="text-xs mt-2 text-center font-medium">{palette.name}</p>
-                        </button>
-                      ))}
+                  <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                    <div className="flex flex-col space-y-1.5">
+                      <CardTitle>Banner do topo</CardTitle>
+                      <CardDescription>Imagem exibida no topo do seu mini site.</CardDescription>
                     </div>
-                  </CardContent>
+                    <Button variant="ghost" size="icon" onClick={() => toggleSection('banner')}>
+                      {expandedSections.banner ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </CardHeader>
+                  {expandedSections.banner && (
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="header-upload">Imagem do banner (JPEG/PNG, máx. 5MB)</Label>
+                        <div className="w-full h-24 bg-muted rounded-md flex items-center justify-center border overflow-hidden">
+                          {isUploadingHeader ? (
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                          ) : headerPreviewUrl ? (
+                            <img src={headerPreviewUrl} alt="Preview do banner" className="w-full h-full object-cover" loading="lazy" />
+                          ) : pageConfig.headerImage ? (
+                            <img src={pageConfig.headerImage} alt="Banner atual" className="w-full h-full object-cover" loading="lazy" />
+                          ) : (
+                            <div className="text-sm text-muted-foreground">Nenhum banner definido</div>
+                          )}
+                        </div>
+                        <Input id="header-upload" type="file" accept="image/jpeg,image/png" onChange={handleHeaderSelect} className="hidden" />
+                        <div className="flex gap-2">
+                          <Button asChild variant="outline">
+                            <Label htmlFor="header-upload">
+                              <Upload className="mr-2 h-4 w-4" />
+                              Selecionar imagem
+                            </Label>
+                          </Button>
+                          <Button onClick={confirmHeaderUpload} disabled={!headerPendingFile || isUploadingHeader}>
+                            Salvar banner
+                          </Button>
+                          {headerPendingFile && (
+                            <Button variant="ghost" onClick={cancelHeaderPreview}>
+                              Cancelar
+                            </Button>
+                          )}
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="ghost">Ajuda</Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80 text-sm">
+                              <p className="font-medium mb-2">Como funciona o banner:</p>
+                              <ul className="space-y-1">
+                                <li>• Formatos permitidos: JPEG e PNG</li>
+                                <li>• Tamanho máximo: 5MB</li>
+                                <li>• Selecione a imagem para ver o preview</li>
+                                <li>• Clique em “Salvar banner” para aplicar</li>
+                                <li>• O banner aparece no topo do preview e da página pública</li>
+                              </ul>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                    <div className="flex flex-col space-y-1.5">
+                      <CardTitle>Link da Página</CardTitle>
+                      <CardDescription>Personalize a URL da sua página pública.</CardDescription>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => toggleSection('slug')}>
+                      {expandedSections.slug ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </CardHeader>
+                  {expandedSections.slug && (
+                    <CardContent>
+                      {isEditingSlug ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground text-sm whitespace-nowrap">{window.location.origin}/u/</span>
+                            <Input
+                              value={editedSlug}
+                              onChange={(e) => setEditedSlug(normalizeSlug(e.target.value))}
+                              className="h-9"
+                            />
+                          </div>
+                          {slugError && <p className="text-sm text-destructive">{slugError}</p>}
+                          {slugAvailabilityMessage && <p className="text-sm text-green-600">{slugAvailabilityMessage}</p>}
+                          <div className="flex gap-2">
+                            <Button onClick={handleSlugCheck} size="sm" disabled={isCheckingSlug}>
+                              {isCheckingSlug ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                              Verificar
+                            </Button>
+                            <Button onClick={handleSlugSave} size="sm" variant="default">Salvar</Button>
+                            <Button onClick={() => setIsEditingSlug(false)} size="sm" variant="ghost">Cancelar</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between p-2 rounded-md bg-muted">
+                          <span className="text-sm text-muted-foreground">{publicUrl}</span>
+                          <Button onClick={handleSlugEdit} size="sm" variant="outline">
+                            <Pencil className="mr-2 h-3 w-3" />
+                            Editar
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  )}
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                    <div className="flex flex-col space-y-1.5">
+                      <CardTitle>Tema</CardTitle>
+                      <CardDescription>Escolha uma paleta de cores para sua página.</CardDescription>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => toggleSection('theme')}>
+                      {expandedSections.theme ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </CardHeader>
+                  {expandedSections.theme && (
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {COLOR_PALETTES.map(palette => (
+                          <button
+                            key={palette.name}
+                            onClick={() => handlePaletteSelect(palette)}
+                            className={cn(
+                              "p-2 rounded-lg border-2 transition-all",
+                              pageConfig.colorPalette?.primary === palette.primary ? "border-primary" : "border-transparent hover:border-muted-foreground/50"
+                            )}
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-5 h-5 rounded-full" style={{ backgroundColor: palette.primary }}></div>
+                              <div className="w-5 h-5 rounded-full" style={{ backgroundColor: palette.secondary }}></div>
+                            </div>
+                            <div className="w-full h-8 rounded" style={{ backgroundColor: palette.background }}></div>
+                            <p className="text-xs mt-2 text-center font-medium">{palette.name}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </CardContent>
+                  )}
                 </Card>
               </TabsContent>
             </Tabs>
           </div>
 
           <div className="w-full md:w-5/12 lg:w-2/3 bg-muted/20 md:sticky md:top-16 md:h-[calc(100vh-4rem)] flex items-start justify-center p-4 md:p-6 overflow-auto">
-            <PhonePreview config={pageConfig} />
+            <PhonePreview config={pageConfig} userName={pageConfig.profileTitle || user?.name || ''} />
           </div>
         </div>
+        <ProPlansModal
+          isOpen={showProPlansModal}
+          onClose={() => setShowProPlansModal(false)}
+        />
         <UpgradeModal
           isOpen={isUpgradeModalOpen}
           onClose={() => setIsUpgradeModalOpen(false)}
-          checkoutUrl={kiwifyCheckoutUrl}
+          checkoutUrl={STRIPE_PRO_ANNUAL_URL}
         />
       </div>
     </div>

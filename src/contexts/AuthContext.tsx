@@ -49,15 +49,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchProfile = async (userId: string) => {
+    console.log('[AuthContext] fetchProfile called for userId:', userId);
     try {
+      console.log('[AuthContext] Querying profiles table...');
       const { data, error } = await supabase
         .from('profiles')
         .select('id, name, email, role, status, created_at, page_slug, theme, plan_type')
         .eq('id', userId)
         .single();
 
+      console.log('[AuthContext] Query result - data:', data, 'error:', error);
+
       if (error) {
-        console.error('Error fetching profile:', error);
+        console.error('[AuthContext] Error fetching profile:', error);
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (authUser && authUser.id === userId) {
           const name = authUser.user_metadata.name || 'Usuário';
@@ -93,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(newUser);
         }
       } else if (data) {
+        console.log('[AuthContext] Mapping profile data to User object...');
         const mapped: User = {
           id: data.id,
           name: data.name,
@@ -104,10 +109,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           theme: data.theme || 'light',
           plan_type: data.plan_type || 'free'
         };
+        console.log('[AuthContext] Mapped user:', mapped);
+        console.log('[AuthContext] Setting user state...');
         setUser(mapped);
+        console.log('[AuthContext] User state set successfully');
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Critical Profile Fetch Error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -279,6 +287,86 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(prev => prev ? { ...prev, pageSlug: newSlug } : null);
   };
 
+  const updateProfileName = async (newName: string) => {
+    console.log('[updateProfileName] Called with:', newName);
+    console.log('[updateProfileName] Current user:', user);
+
+    if (!user) {
+      console.error('[updateProfileName] No user found!');
+      return;
+    }
+
+    if (!newName.trim()) {
+      console.error('[updateProfileName] Empty name provided');
+      throw new Error('O nome não pode ser vazio.');
+    }
+
+    console.log('[updateProfileName] Updating profiles table for user:', user.id);
+
+    // DB Update
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ name: newName })
+      .eq('id', user.id)
+      .select();
+
+    console.log('[updateProfileName] Supabase response:', { data, error });
+
+    if (error) {
+      console.error('[updateProfileName] Supabase error:', error);
+      throw error;
+    }
+
+    console.log('[updateProfileName] Successfully updated database');
+
+    // Sincronizar metadados de autenticação (opcional mas recomendado)
+    try {
+      await supabase.auth.updateUser({
+        data: { name: newName }
+      });
+      console.log('[updateProfileName] Auth metadata updated');
+    } catch (authError) {
+      console.warn('[updateProfileName] Failed to update auth metadata:', authError);
+    }
+
+    // Update local state
+    setUser(prev => prev ? { ...prev, name: newName } : null);
+    console.log('[updateProfileName] Local state updated');
+  };
+
+  const updatePageUserName = async (newName: string) => {
+    console.log('[updatePageUserName] Called with:', newName);
+    console.log('[updatePageUserName] Current user:', user);
+
+    if (!user) {
+      console.error('[updatePageUserName] No user found!');
+      return;
+    }
+
+    if (!newName.trim()) {
+      console.error('[updatePageUserName] Empty name provided');
+      throw new Error('O nome não pode ser vazio.');
+    }
+
+    console.log('[updatePageUserName] Updating pages table for user:', user.id);
+
+    // DB Update - atualizar user_name na tabela pages
+    const { data, error } = await supabase
+      .from('pages')
+      .update({ user_name: newName })
+      .eq('user_id', user.id)
+      .select();
+
+    console.log('[updatePageUserName] Supabase response:', { data, error });
+
+    if (error) {
+      console.error('[updatePageUserName] Supabase error:', error);
+      throw error;
+    }
+
+    console.log('[updatePageUserName] Successfully updated pages.user_name');
+  };
+
   const checkSlugAvailability = async (newSlug: string, currentUserId: string): Promise<boolean> => {
     const slugRegex = /^[a-z0-9-]+$/;
     if (!slugRegex.test(newSlug)) {
@@ -291,12 +379,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('page_slug', newSlug)
       .neq('id', currentUserId)
       .single();
-    
+
     return !existingUser; // Retorna true se não houver usuário existente com esse slug
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateTheme, updatePageSlug, checkSlugAvailability }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateTheme, updatePageSlug, updateProfileName, updatePageUserName, checkSlugAvailability }}>
       {children}
     </AuthContext.Provider>
   );
@@ -336,14 +424,14 @@ export async function getAllUsers(): Promise<User[]> {
   }));
 }
 
-export async function getAllowedLinkTypes(userId: string): Promise<Array<'button'|'banner'|'youtube'|'whatsapp'>> {
+export async function getAllowedLinkTypes(userId: string): Promise<Array<'button' | 'banner' | 'youtube' | 'whatsapp'>> {
   const { data: profile } = await supabase
     .from('profiles')
     .select('plan_type')
     .eq('id', userId)
     .single();
   const planType = (profile?.plan_type as 'free' | 'pro') || 'free';
-  const allowed = planType === 'free' ? ['button','banner'] : ['button','banner','youtube','whatsapp'];
+  const allowed = planType === 'free' ? ['button', 'banner'] : ['button', 'banner', 'youtube', 'whatsapp'];
   try {
     await supabase.from('feature_access_audit').insert({
       user_id: userId,
@@ -351,8 +439,8 @@ export async function getAllowedLinkTypes(userId: string): Promise<Array<'button
       feature: allowed.join(','),
       action: 'options_refreshed'
     });
-  } catch {}
-  return allowed;
+  } catch { }
+  return allowed as Array<'button' | 'banner' | 'youtube' | 'whatsapp'>;
 }
 
 export async function updateUserStatus(userId: string, status: 'active' | 'blocked') {
@@ -394,7 +482,8 @@ export async function getLinks(userId: string): Promise<PageLink[]> {
       position: link.position || 0,
       videoId: link.video_id || undefined,
       whatsappPhone: link.whatsapp_phone || undefined,
-      whatsappMessage: link.whatsapp_message || undefined
+      whatsappMessage: link.whatsapp_message || undefined,
+      clicks: link.clicks || 0
     };
   });
 }
@@ -426,7 +515,7 @@ export async function saveLink(userId: string, link: PageLink) {
           feature: link.type,
           action: 'attempt_premium_feature'
         });
-      } catch {}
+      } catch { }
       const err = new Error('Recurso indisponível no plano gratuito.');
       (err as any).code = 'FEATURE_NOT_AVAILABLE';
       throw err;
@@ -616,7 +705,7 @@ export async function getUserPage(slug: string): Promise<UserPage | null> {
 
   return {
     userId: page.user_id,
-    userName: page.config?.displayName || profile.name,
+    userName: page.config?.profileTitle || page.config?.displayName || profile.name,
     createdAt: page.created_at,
     config: fullConfig
   } as UserPage;
@@ -643,7 +732,7 @@ export async function getUserPageById(userId: string): Promise<UserPage | null> 
 
   return {
     userId: page.user_id,
-    userName: page.config?.displayName || page.user_name,
+    userName: page.config?.profileTitle || page.config?.displayName || page.user_name,
     createdAt: page.created_at,
     config: fullConfig
   } as UserPage;
@@ -657,4 +746,52 @@ export async function saveUserPageConfig(userId: string, config: PageConfig) {
     .eq('user_id', userId);
 
   if (error) throw error;
+}
+
+export async function trackLinkClick(linkId: string) {
+  try {
+    const { error } = await supabase.rpc('increment_link_clicks', { link_id: linkId });
+    if (error) {
+      console.error('Error tracking click:', error);
+    }
+  } catch (err) {
+    console.error('Exception tracking click:', err);
+  }
+}
+
+export async function trackPageView(userId: string) {
+  try {
+    const { error } = await supabase.rpc('increment_page_view', { p_user_id: userId });
+    if (error) {
+      console.error('Error tracking page view:', error);
+    }
+  } catch (err) {
+    console.error('Exception tracking page view:', err);
+  }
+}
+
+export async function getPageViews(userId: string) {
+  try {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+
+    const { data, error } = await supabase
+      .from('page_views')
+      .select('view_date, count')
+      .eq('user_id', userId)
+      .gte('view_date', startDate.toISOString().split('T')[0])
+      .lte('view_date', endDate.toISOString().split('T')[0])
+      .order('view_date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching page views:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('Exception fetching page views:', err);
+    return [];
+  }
 }

@@ -12,7 +12,7 @@ import { Rocket, Star, Zap } from 'lucide-react';
 interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  checkoutUrl: string; // URL de checkout da Kiwify
+  checkoutUrl: string; // URL de checkout do Stripe
 }
 
 export function UpgradeModal({ isOpen, onClose, checkoutUrl }: UpgradeModalProps) {
